@@ -2,6 +2,8 @@ use traveling_salesman::point::{self, Point};
 
 pub struct PointManager {
     pub points:Vec<Point>,
+    pub current_path: Vec<Point>,
+    pub best_path: Vec<Point>,
     radius:f32  
 }
 
@@ -9,6 +11,8 @@ impl PointManager {
     pub fn default() -> Self {
         Self{
             points: Vec::new(),
+            current_path: Vec::new(),
+            best_path: Vec::new(),
             radius: 10.0
         }
     }

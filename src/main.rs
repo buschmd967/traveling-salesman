@@ -1,7 +1,9 @@
 mod point_manager;
+mod point;
 
-use eframe::{App, run_native, egui::{Ui, Button, plot::{self, MarkerShape}, plot::Plot, CentralPanel, Visuals, TopBottomPanel}};
+use eframe::{App, run_native, egui::{Color32, Ui, Button, plot::{self, MarkerShape}, plot::Plot, CentralPanel, Visuals, TopBottomPanel}};
 use point_manager::PointManager;
+
 
 struct MainWindow{ 
     point_manager:PointManager
@@ -58,16 +60,35 @@ impl MainWindow{
             .allow_zoom(false)
             .show(ui, |plot_ui| {
                 plot_ui.points(
-                    self.generate_values()
+                    self.generate_points()
                     .shape(MarkerShape::Circle)
                     .filled(true)
                     .radius(3.0)
-                )
+                );
+
+                //Current Best
+                plot_ui.line(plot::Line::new(self.generate_values(&self.point_manager.best_path)));
+
+                //Current Try
+                plot_ui.line(
+                    plot::Line::new(self.generate_values(&self.point_manager.current_path))
+                    .color(Color32::from_rgb(0, 255, 0))
+                );
 
             });
     }
 
-    fn generate_values(&self) -> plot::Points {
+    fn generate_values(&self, points: &Vec<traveling_salesman::point::Point>) -> plot::Values {
+        let mut values_vector = Vec::<plot::Value>::new();
+
+        for (point) in points {
+            values_vector.push(point.to_value());
+        }
+
+        return plot::Values::from_values(values_vector);
+    }
+
+    fn generate_points(&self) -> plot::Points {
 
 
         let mut values_vector = Vec::<plot::Value>::new();
