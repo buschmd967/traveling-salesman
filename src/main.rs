@@ -3,10 +3,17 @@ mod point;
 
 use eframe::{App, run_native, egui::{Color32, Ui, Button, plot::{self, MarkerShape}, plot::Plot, CentralPanel, Visuals, TopBottomPanel}};
 use point_manager::PointManager;
+use std::thread;
 
+
+enum RunMode {
+    None,
+    GenerateRandom
+} 
 
 struct MainWindow{ 
-    point_manager:PointManager
+    point_manager:PointManager,
+    mode:RunMode
 }
 
 impl App for MainWindow {
@@ -24,7 +31,14 @@ impl App for MainWindow {
             if ui.add(Button::new("Remove Last Point")).clicked() {
                 self.point_manager.remove_last_point();
             }
+            if ui.add(Button::new("Start Random Search")).clicked() {
+                self.mode = RunMode::GenerateRandom;
+            }
+            if ui.add(Button::new("Stop")).clicked() {
+                self.mode = RunMode::None;
+            }
         });
+
     }
 }
 
@@ -32,7 +46,8 @@ impl Default for MainWindow {
 
     fn default() -> Self {
         Self {
-            point_manager: PointManager::default()
+            point_manager: PointManager::default(),
+            mode: RunMode::None
         }
     }
 
@@ -40,6 +55,17 @@ impl Default for MainWindow {
 }
 
 impl MainWindow{
+
+    fn main_loop(&mut self) {
+
+        loop{
+            match self.mode {
+                RunMode::GenerateRandom => self.point_manager.random_path_step(),
+                RunMode::None => {}
+            }
+        }
+
+    }
     
     fn graph(&self, ui: &mut Ui) {
 
@@ -67,22 +93,28 @@ impl MainWindow{
                 );
 
                 //Current Best
-                plot_ui.line(plot::Line::new(self.generate_values(&self.point_manager.best_path)));
+                plot_ui.line(plot::Line::new(self.generate_path_values(&self.point_manager.best_path))
+                    .color(Color32::from_rgb(0, 255, 0))
+                );
 
                 //Current Try
                 plot_ui.line(
-                    plot::Line::new(self.generate_values(&self.point_manager.current_path))
-                    .color(Color32::from_rgb(0, 255, 0))
+                    plot::Line::new(self.generate_path_values(&self.point_manager.current_path))
                 );
 
             });
     }
 
-    fn generate_values(&self, points: &Vec<traveling_salesman::point::Point>) -> plot::Values {
+    fn generate_path_values(&self, points: &Vec<traveling_salesman::point::Point>) -> plot::Values {
         let mut values_vector = Vec::<plot::Value>::new();
 
         for (point) in points {
             values_vector.push(point.to_value());
+        }
+
+        match values_vector.get(0) {
+            Some(v) => values_vector.push(v.clone()),
+            None => {}
         }
 
         return plot::Values::from_values(values_vector);
@@ -103,10 +135,23 @@ impl MainWindow{
 }
 
 fn main(){
-    let options = eframe::NativeOptions::default();
-    run_native(
-        "Traveling Salesman",
-        options,
-        Box::new(|_cc| Box::new(MainWindow::default()))
-    );
+
+    let options = eframe::NativeOptions {
+        #[cfg(feature = "wgpu")]
+        renderer: eframe::Renderer::Wgpu,
+
+        ..Default::default()
+    };
+
+    let mut main_window = MainWindow::default();
+
+    thread::spawn(|| {
+        run_native(
+            "Traveling Salesman",
+            options,
+            Box::new(|_cc| Box::new(main_window))
+        );
+    });
+
+    // main_window.main_loop();
 }
