@@ -1,7 +1,7 @@
 use rand::Rng;
+use eframe::egui::plot::Value;
 
 #[derive(PartialEq)]
-
 pub struct Point {
     pub x: f32,
     pub y: f32
@@ -27,5 +27,12 @@ impl Point {
         let y: f32 = rng.gen_range( (-1.0 * radius)..radius);
         
         return Self{x, y};
+    }
+
+    pub fn to_value(&self) -> Value {
+        Value { 
+            x: f64::from(self.x), 
+            y: f64::from(self.y) 
+        }
     }
 }

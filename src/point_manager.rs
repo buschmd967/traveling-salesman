@@ -1,19 +1,19 @@
 use traveling_salesman::point::{self, Point};
 
-struct PointManager {
-    points:Vec<Point>,
+pub struct PointManager {
+    pub points:Vec<Point>,
     radius:f32  
 }
 
 impl PointManager {
-    fn default() -> Self {
+    pub fn default() -> Self {
         Self{
             points: Vec::new(),
-            radius: 20.0
+            radius: 10.0
         }
     }
 
-    fn add_random_point(&mut self) {
+    pub fn add_random_point(&mut self) {
         let mut new_point:Point = Point::generateRandom(self.radius);
 
         while self.point_exists(&new_point) {
@@ -23,12 +23,16 @@ impl PointManager {
         self.points.push(new_point);
     }
 
-    fn add_point(&mut self, p:Point) -> bool {
+    pub fn add_point(&mut self, p:Point) -> bool {
         if !self.point_exists(&p){
             self.points.push(p);
             return true;
         }
         return false;
+    }
+
+    pub fn remove_last_point(&mut self) {
+        self.points.pop();
     }
 
     fn point_exists(&self, p:&Point) -> bool {
@@ -38,6 +42,8 @@ impl PointManager {
             None => return false
         }
     }
+
+    
 
 
 }
