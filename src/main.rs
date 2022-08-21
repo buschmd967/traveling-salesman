@@ -2,18 +2,29 @@ mod point_manager;
 mod point;
 
 use eframe::{App, run_native, egui::{self, Context, Color32, Ui, Button, plot::{self, MarkerShape, Text, Plot, PlotPoint}, CentralPanel, Visuals, TopBottomPanel}};
-use point_manager::{RunMode, PointManager};
+use point_manager::PointManager;
 use std::{thread, time};
 use std::sync::{Arc, Mutex};
 
+#[derive(Clone, Copy)]
+pub enum RunMode {
+    None,
+    GenerateRandom,
+    RandomSwap
+} 
+
 struct LocalData{
-    swap_n:i32 
+    swap_n:i32,
+    ctx: Context,
+    mode: RunMode
 }
 
-impl Default for LocalData{
-    fn default() -> Self {
+impl LocalData{
+    fn new(c: Context) -> Self {
         Self{
-            swap_n: 1
+            swap_n: 1,
+            ctx: c,
+            mode: RunMode::None
         }
     }
 }
@@ -21,8 +32,8 @@ impl Default for LocalData{
 
 struct MainWindow{ 
     point_manager:Arc<Mutex<PointManager>>,
-    context:Context,
-    swap_n: Arc<Mutex<i32>>
+    // context:Context,
+    local_data: Arc<Mutex<LocalData>>
 }
 
 impl App for MainWindow {
@@ -44,16 +55,16 @@ impl App for MainWindow {
                 pm.lock().unwrap().remove_last_point();
             }
             if ui.add(Button::new("Start Random Search")).clicked() {
-                let pm = Arc::clone(&self.point_manager);
-                pm.lock().unwrap().change_mode(RunMode::GenerateRandom);
+                let ld = Arc::clone(&self.local_data);
+                ld.lock().unwrap().mode = RunMode::GenerateRandom;
             }
             if ui.add(Button::new("Start Random Swap")).clicked() {
-                let pm = Arc::clone(&self.point_manager);
-                pm.lock().unwrap().change_mode(RunMode::RandomSwap);
+                let ld = Arc::clone(&self.local_data);
+                ld.lock().unwrap().mode = RunMode::RandomSwap;
             }
             if ui.add(Button::new("Stop")).clicked() {
-                let pm = Arc::clone(&self.point_manager);
-                pm.lock().unwrap().change_mode(RunMode::None);
+                let ld = Arc::clone(&self.local_data);
+                ld.lock().unwrap().mode = RunMode::None;
             }
         });
 
@@ -65,8 +76,8 @@ impl Default for MainWindow {
     fn default() -> Self {
         Self {
             point_manager: Arc::new(Mutex::new(PointManager::default())),
-            context: Context::default(),
-            swap_n: Arc::new(Mutex::new(1))
+            // context: Context::default(),
+            local_data: Arc::new(Mutex::new(LocalData::new(Context::default())))
         }
     }
 
@@ -78,8 +89,8 @@ impl MainWindow{
 
         let mut mw = Self { 
             point_manager: Arc::new(Mutex::new(PointManager::default())),
-            context: cc.egui_ctx.clone(),
-            swap_n: Arc::new(Mutex::new(1))
+            // context: cc.egui_ctx.clone(),
+            local_data: Arc::new(Mutex::new(LocalData::new(cc.egui_ctx.clone())))
         };
 
         mw.start_main_loop();
@@ -88,16 +99,19 @@ impl MainWindow{
 
     fn start_main_loop(&mut self) {
         let pm = Arc::clone(&self.point_manager);
-        let ctx = self.context.clone();
+        let ld = Arc::clone(&self.local_data);
+        // let ctx = self.context.clone();
         thread::spawn(move || {
-            MainWindow::main_loop(pm, ctx);
+            MainWindow::main_loop(pm, ld);
         });
     }
 
-    fn main_loop(point_manager: Arc<Mutex<PointManager>>, ctx:Context) {
+    fn main_loop(point_manager: Arc<Mutex<PointManager>>, local_data: Arc<Mutex<LocalData>>) {
         
         let mut last_repaint = time::Instant::now();
         let update_interval = time::Duration::from_millis(1);
+        
+        let ctx = local_data.lock().unwrap().ctx.clone();
 
         loop{
             if last_repaint + update_interval <= time::Instant::now() {
@@ -105,8 +119,7 @@ impl MainWindow{
                 last_repaint = time::Instant::now();
             } 
 
-            let mode = point_manager.lock().unwrap().mode.clone();
-            match mode {
+            match local_data.lock().unwrap().mode {
                 RunMode::GenerateRandom => {
                     point_manager.lock().unwrap().random_path_step();
                 },
