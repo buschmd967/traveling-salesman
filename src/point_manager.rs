@@ -2,11 +2,18 @@ use rand::seq::SliceRandom;
 use traveling_salesman::point::{self, Point};
 use rand::Rng;
 
+#[derive(Clone, Copy)]
+pub enum RunMode {
+    None,
+    GenerateRandom
+} 
+
 pub struct PointManager {
     pub points:Vec<Point>,
     pub current_path: Vec<Point>,
     pub best_path: Vec<Point>,
     pub score: f32,
+    pub mode: RunMode,
     radius:f32  
 }
 
@@ -17,8 +24,14 @@ impl PointManager {
             current_path: Vec::new(),
             best_path: Vec::new(),
             score: f32::INFINITY,
+            mode: RunMode::None,
             radius: 10.0
         }
+    }
+
+    pub fn change_mode(&mut self, mode:RunMode){
+        self.mode = mode;
+        self.current_path = Vec::new();
     }
 
     pub fn add_random_point(&mut self) {
@@ -43,6 +56,7 @@ impl PointManager {
 
     pub fn remove_last_point(&mut self) {
         self.points.pop();
+        self.reset_paths();
     }
 
     fn point_exists(&self, p:&Point) -> bool {

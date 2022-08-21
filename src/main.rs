@@ -1,23 +1,25 @@
 mod point_manager;
 mod point;
 
-use eframe::{App, run_native, egui::{Color32, Ui, Button, plot::{self, MarkerShape}, plot::Plot, CentralPanel, Visuals, TopBottomPanel}};
-use point_manager::PointManager;
+use rand::Rng;
+use eframe::{App, run_native, egui::{Context, Color32, Ui, Button, plot::{self, MarkerShape}, plot::Plot, CentralPanel, Visuals, TopBottomPanel}};
+use point_manager::{RunMode, PointManager};
 use std::thread;
+use std::sync::{Arc, Mutex};
 
-
-enum RunMode {
-    None,
-    GenerateRandom
-} 
 
 struct MainWindow{ 
-    point_manager:PointManager,
-    mode:RunMode
+    point_manager:Arc<Mutex<PointManager>>,
+    context:Arc<Mutex<Context>>
+    // mode:RunMode
 }
 
 impl App for MainWindow {
     fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+        
+        let context = Arc::clone(&self.context); 
+            context.lock().unwrap().clone_from(ctx);
+
         ctx.set_visuals(Visuals::dark());
 
         CentralPanel::default().show(ctx, |ui| {
@@ -26,16 +28,21 @@ impl App for MainWindow {
 
         TopBottomPanel::bottom("ButtonPanel").show(ctx, |ui| {
             if ui.add(Button::new("Add Random Point")).clicked() {
-                self.point_manager.add_random_point();
+                let pm = Arc::clone(&self.point_manager);
+                pm.lock().unwrap().add_random_point();
             }
             if ui.add(Button::new("Remove Last Point")).clicked() {
-                self.point_manager.remove_last_point();
+                let pm = Arc::clone(&self.point_manager);
+                pm.lock().unwrap().remove_last_point();
             }
             if ui.add(Button::new("Start Random Search")).clicked() {
-                self.mode = RunMode::GenerateRandom;
+                let pm = Arc::clone(&self.point_manager);
+                pm.lock().unwrap().change_mode(RunMode::GenerateRandom);
             }
             if ui.add(Button::new("Stop")).clicked() {
-                self.mode = RunMode::None;
+                let pm = Arc::clone(&self.point_manager);
+                pm.lock().unwrap().change_mode(RunMode::None);
+
             }
         });
 
@@ -46,21 +53,36 @@ impl Default for MainWindow {
 
     fn default() -> Self {
         Self {
-            point_manager: PointManager::default(),
-            mode: RunMode::None
+            point_manager: Arc::new(Mutex::new(PointManager::default())),
+            context: Arc::new(Mutex::new(Context::default()))
         }
     }
-
 
 }
 
 impl MainWindow{
 
-    fn main_loop(&mut self) {
+    fn start_main_loop(&mut self) {
+        let pm = Arc::clone(&self.point_manager);
+        let ctx = self.context.clone();
+        thread::spawn(move || {
+            MainWindow::main_loop(Arc::clone(&pm), ctx);
+        });
+    }
 
+    fn main_loop(point_manager: Arc<Mutex<PointManager>>, context:Arc<Mutex<Context>>) {
+        
         loop{
-            match self.mode {
-                RunMode::GenerateRandom => self.point_manager.random_path_step(),
+            let context_guard = Arc::clone(&context);
+            let c = context_guard.lock().unwrap();
+            c.request_repaint();
+
+            let pm = Arc::clone(&point_manager);
+            let mode = pm.lock().unwrap().mode.clone();
+            match mode {
+                RunMode::GenerateRandom => {
+                    pm.lock().unwrap().random_path_step();
+                },
                 RunMode::None => {}
             }
         }
@@ -91,15 +113,19 @@ impl MainWindow{
                     .filled(true)
                     .radius(3.0)
                 );
+                
+                let pm = Arc::clone(&self.point_manager);
+                let best_path = pm.lock().unwrap().best_path.clone();
+                let current_path = pm.lock().unwrap().current_path.clone();
 
                 //Current Best
-                plot_ui.line(plot::Line::new(self.generate_path_values(&self.point_manager.best_path))
+                plot_ui.line(plot::Line::new(self.generate_path_values(&best_path))
                     .color(Color32::from_rgb(0, 255, 0))
                 );
 
                 //Current Try
                 plot_ui.line(
-                    plot::Line::new(self.generate_path_values(&self.point_manager.current_path))
+                    plot::Line::new(self.generate_path_values(&current_path))
                 );
 
             });
@@ -124,8 +150,9 @@ impl MainWindow{
 
 
         let mut values_vector = Vec::<plot::Value>::new();
+        let pm = Arc::clone(&self.point_manager);
 
-        for (point) in &self.point_manager.points {
+        for (point) in &pm.lock().unwrap().points {
             values_vector.push(point.to_value());
         }
 
@@ -145,13 +172,14 @@ fn main(){
 
     let mut main_window = MainWindow::default();
 
-    thread::spawn(|| {
+    main_window.start_main_loop();
+
+    // thread::spawn(|| {
         run_native(
             "Traveling Salesman",
             options,
             Box::new(|_cc| Box::new(main_window))
         );
-    });
+    // });
 
-    // main_window.main_loop();
 }
