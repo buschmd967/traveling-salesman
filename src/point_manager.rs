@@ -1,10 +1,11 @@
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, Rng};
 use traveling_salesman::point::Point;
 
 #[derive(Clone, Copy)]
 pub enum RunMode {
     None,
-    GenerateRandom
+    GenerateRandom,
+    RandomSwap
 } 
 
 pub struct PointManager {
@@ -31,6 +32,11 @@ impl PointManager {
     pub fn change_mode(&mut self, mode:RunMode){
         self.mode = mode;
         self.current_path = Vec::new();
+
+        //Sanity check
+        if self.best_path.len() <= 1 {
+            self.score = f32::INFINITY;
+        }
     }
 
     pub fn add_random_point(&mut self) {
@@ -104,6 +110,36 @@ impl PointManager {
         random_path.shuffle(&mut rng);
         
         return random_path;
+    }
+
+    pub fn random_swap_step(&mut self, n: i32) {
+        if self.best_path.len() > 0 {    
+            let path = self.generage_random_swap(n);
+            let new_score = PointManager::evaluate_path(&path);
+            self.current_path = path.clone();
+            if new_score <= self.score {
+                self.best_path = path;
+                self.score = new_score;
+            }
+        }
+    }
+
+    fn generage_random_swap(&self, n:i32) -> Vec<Point> {
+        let mut rng = rand::thread_rng();
+
+        let mut path = self.best_path.clone();
+        let size = path.len();
+        if size > 1 {
+            for _ in 0..n {
+                let i = rng.gen_range(0..size);
+                let j = rng.gen_range(0..size);
+        
+                path.swap(i, j);
+            }
+
+        }
+
+        return path;
     }
 
 

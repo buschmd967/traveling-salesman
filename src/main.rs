@@ -1,15 +1,28 @@
 mod point_manager;
 mod point;
 
-use eframe::{App, run_native, egui::{Context, Color32, Ui, Button, plot::{self, MarkerShape}, plot::Plot, CentralPanel, Visuals, TopBottomPanel}};
+use eframe::{App, run_native, egui::{self, Context, Color32, Ui, Button, plot::{self, MarkerShape, Text, Plot, PlotPoint}, CentralPanel, Visuals, TopBottomPanel}};
 use point_manager::{RunMode, PointManager};
 use std::{thread, time};
 use std::sync::{Arc, Mutex};
 
+struct LocalData{
+    swap_n:i32 
+}
+
+impl Default for LocalData{
+    fn default() -> Self {
+        Self{
+            swap_n: 1
+        }
+    }
+}
+
 
 struct MainWindow{ 
     point_manager:Arc<Mutex<PointManager>>,
-    context:Context
+    context:Context,
+    swap_n: Arc<Mutex<i32>>
 }
 
 impl App for MainWindow {
@@ -34,10 +47,13 @@ impl App for MainWindow {
                 let pm = Arc::clone(&self.point_manager);
                 pm.lock().unwrap().change_mode(RunMode::GenerateRandom);
             }
+            if ui.add(Button::new("Start Random Swap")).clicked() {
+                let pm = Arc::clone(&self.point_manager);
+                pm.lock().unwrap().change_mode(RunMode::RandomSwap);
+            }
             if ui.add(Button::new("Stop")).clicked() {
                 let pm = Arc::clone(&self.point_manager);
                 pm.lock().unwrap().change_mode(RunMode::None);
-
             }
         });
 
@@ -49,7 +65,8 @@ impl Default for MainWindow {
     fn default() -> Self {
         Self {
             point_manager: Arc::new(Mutex::new(PointManager::default())),
-            context: Context::default()
+            context: Context::default(),
+            swap_n: Arc::new(Mutex::new(1))
         }
     }
 
@@ -61,7 +78,8 @@ impl MainWindow{
 
         let mut mw = Self { 
             point_manager: Arc::new(Mutex::new(PointManager::default())),
-            context: cc.egui_ctx.clone()
+            context: cc.egui_ctx.clone(),
+            swap_n: Arc::new(Mutex::new(1))
         };
 
         mw.start_main_loop();
@@ -92,6 +110,9 @@ impl MainWindow{
                 RunMode::GenerateRandom => {
                     point_manager.lock().unwrap().random_path_step();
                 },
+                RunMode::RandomSwap => {
+                    point_manager.lock().unwrap().random_swap_step(4);
+                }
                 RunMode::None => {}
             }
         }
@@ -102,6 +123,8 @@ impl MainWindow{
 
         let x = 15.0;
         let y = 15.0;
+
+        ui.style_mut().override_text_style = Some(egui::TextStyle::Heading);
 
         Plot::new("plot")
             .show_axes([false, false])
@@ -116,6 +139,8 @@ impl MainWindow{
             .allow_scroll(false)
             .allow_zoom(false)
             .show(ui, |plot_ui| {
+                
+                //plot nodes
                 plot_ui.points(
                     self.generate_points()
                     .shape(MarkerShape::Circle)
@@ -123,6 +148,7 @@ impl MainWindow{
                     .radius(3.0)
                 );
                 
+                //Path stuff
                 let pm = Arc::clone(&self.point_manager);
                 let best_path = pm.lock().unwrap().best_path.clone();
                 let current_path = pm.lock().unwrap().current_path.clone();
@@ -137,11 +163,22 @@ impl MainWindow{
                     plot::Line::new(self.generate_path_values(&current_path))
                 );
 
+                //Info text
+                //score text
+                let score = pm.lock().unwrap().score;
+                let score_text = "score: ".to_owned() + &score.to_string(); 
+                plot_ui.text(
+                    plot::Text::new(PlotPoint::new(-13.5, 14), score_text)
+                    .name("Text")
+
+                    
+                );
+
             });
     }
 
-    fn generate_path_values(&self, points: &Vec<traveling_salesman::point::Point>) -> plot::Values {
-        let mut values_vector = Vec::<plot::Value>::new();
+    fn generate_path_values(&self, points: &Vec<traveling_salesman::point::Point>) -> plot::PlotPoints {
+        let mut values_vector = Vec::<[f64; 2]>::new();
 
         for point in points {
             values_vector.push(point.to_value());
@@ -152,20 +189,20 @@ impl MainWindow{
             None => {}
         }
 
-        return plot::Values::from_values(values_vector);
+        return plot::PlotPoints::new(values_vector);
     }
 
     fn generate_points(&self) -> plot::Points {
 
 
-        let mut values_vector = Vec::<plot::Value>::new();
+        let mut values_vector = Vec::<[f64;2]>::new();
         let pm = Arc::clone(&self.point_manager);
 
         for point in &pm.lock().unwrap().points {
             values_vector.push(point.to_value());
         }
 
-        let values =  plot::Values::from_values(values_vector);
+        let values =  plot::PlotPoints::new(values_vector);
         return plot::Points::new(values);
     }
 }

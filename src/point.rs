@@ -1,5 +1,5 @@
 use rand::Rng;
-use eframe::egui::plot::Value;
+use eframe::egui::plot::PlotPoint;
 
 #[derive(PartialEq)]
 #[derive(Clone, Copy)]
@@ -30,10 +30,7 @@ impl Point {
         return Self{x, y};
     }
 
-    pub fn to_value(&self) -> Value {
-        Value { 
-            x: f64::from(self.x), 
-            y: f64::from(self.y) 
-        }
+    pub fn to_value(&self) -> [f64;2] {
+        return [f64::from(self.x), f64::from(self.y)]; 
     }
 }
