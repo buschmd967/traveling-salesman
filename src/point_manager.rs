@@ -93,14 +93,18 @@ impl PointManager {
         return score;
     }
 
-    pub fn random_path_step(&mut self) {
-        let random_path = self.generate_random_path();
-        let new_score = PointManager::evaluate_path(&random_path);
+    fn test_replace_new_path(&mut self, path:Vec<Point>) {
+        let new_score = PointManager::evaluate_path(&path);
         if new_score <= self.score {
             self.score = new_score;
-            self.best_path = random_path.clone();
+            self.best_path = path.clone();
         }
-        self.current_path = random_path.clone();
+        self.current_path = path.clone();
+    }
+
+    pub fn random_path_step(&mut self) {
+        let random_path = self.generate_random_path();
+        self.test_replace_new_path(random_path);
     }
 
     fn generate_random_path(&self) -> Vec<Point> {
@@ -115,12 +119,7 @@ impl PointManager {
     pub fn random_swap_step(&mut self, n: i32) {
         if self.best_path.len() > 0 {    
             let path = self.generage_random_swap(n);
-            let new_score = PointManager::evaluate_path(&path);
-            self.current_path = path.clone();
-            if new_score <= self.score {
-                self.best_path = path;
-                self.score = new_score;
-            }
+            self.test_replace_new_path(path);
         }
     }
 
@@ -133,11 +132,35 @@ impl PointManager {
             for _ in 0..n {
                 let i = rng.gen_range(0..size);
                 let j = rng.gen_range(0..size);
-                
+
                 let el = path.remove(i);
                 path.insert(j, el);
             }
 
+        }
+
+        return path;
+    }
+
+    pub fn random_connection_swap_step(&mut self, n:i32) {
+        if self.best_path.len() > 0 {
+            let path = self.generate_random_connection_swap(n);
+            self.test_replace_new_path(path);
+        }
+    }
+
+    fn generate_random_connection_swap(&self, n:i32) -> Vec<Point> {
+        let mut rng = rand::thread_rng();
+
+        let mut path = self.best_path.clone();
+        let size = path.len();
+        if size > 1 {
+            for _ in 0..n {
+                let i = rng.gen_range(0..size-1);
+                let j = rng.gen_range(i..size);
+
+                path[i..j].reverse();
+            }
         }
 
         return path;

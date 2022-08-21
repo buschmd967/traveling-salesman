@@ -10,7 +10,8 @@ use std::sync::{Arc, Mutex};
 pub enum RunMode {
     None,
     GenerateRandom,
-    RandomSwap
+    RandomPointSwap,
+    RandomPathSwap
 } 
 
 struct LocalData{
@@ -99,17 +100,21 @@ impl MainWindow{
         let ctx = local_data.lock().unwrap().ctx.clone();
 
         loop{
+            
             if last_repaint + update_interval <= time::Instant::now() {
                 ctx.request_repaint();
                 last_repaint = time::Instant::now();
             } 
-
-            match local_data.lock().unwrap().mode {
+            let mode = local_data.lock().unwrap().mode.clone(); 
+            match mode {
                 RunMode::GenerateRandom => {
                     point_manager.lock().unwrap().random_path_step();
                 },
-                RunMode::RandomSwap => {
-                    point_manager.lock().unwrap().random_swap_step(4);
+                RunMode::RandomPointSwap => {
+                    point_manager.lock().unwrap().random_swap_step(local_data.lock().unwrap().swap_n);
+                },
+                RunMode::RandomPathSwap => {
+                    point_manager.lock().unwrap().random_connection_swap_step(local_data.lock().unwrap().swap_n);
                 }
                 RunMode::None => {
                     point_manager.lock().unwrap().current_path = Vec::new();
@@ -120,6 +125,7 @@ impl MainWindow{
     }
 
     fn control_panel(&mut self, ui: &mut Ui) {
+        // ROW 1
         if ui.add(Button::new("Add Random Point")).clicked() {
             let pm = Arc::clone(&self.point_manager);
             pm.lock().unwrap().add_random_point();
@@ -129,27 +135,28 @@ impl MainWindow{
             let ld = Arc::clone(&self.local_data);
             ld.lock().unwrap().mode = RunMode::GenerateRandom;
         }
+        
+        if ui.add(Button::new("Start Random Point Swap")).clicked() {
+            let ld = Arc::clone(&self.local_data);
+            ld.lock().unwrap().mode = RunMode::RandomPointSwap;
+        }
 
         ui.end_row();
+        // ROW 2
 
         if ui.add(Button::new("Remove Last Point")).clicked() {
             let pm = Arc::clone(&self.point_manager);
             pm.lock().unwrap().remove_last_point();
         }
+        ui.horizontal(|_|{});
 
-        if ui.add(Button::new("Start Random Swap")).clicked() {
+        if ui.add(Button::new("Start Random Path Swap")).clicked() {
             let ld = Arc::clone(&self.local_data);
-            ld.lock().unwrap().mode = RunMode::RandomSwap;
+            ld.lock().unwrap().mode = RunMode::RandomPathSwap;
         }
-
-
-        ui.horizontal(|horizontal_ui| {
-            horizontal_ui.add(
-                egui::Slider::new(&mut self.local_data.lock().unwrap().swap_n, 0..=10)
-                .text("Swap n"))
-        });
         
         ui.end_row();
+        //ROW 3
 
         if ui.add(Button::new("Clear Points")).clicked() {
             let pm = Arc::clone(&self.point_manager);
@@ -160,6 +167,13 @@ impl MainWindow{
             let ld = Arc::clone(&self.local_data);
             ld.lock().unwrap().mode = RunMode::None;
         }
+
+        ui.horizontal(|horizontal_ui| {
+            horizontal_ui.add(
+                egui::Slider::new(&mut self.local_data.lock().unwrap().swap_n, 0..=20)
+                .text("Swap n"));
+        });
+
     }
     
     fn graph(&self, ui: &mut Ui) {
