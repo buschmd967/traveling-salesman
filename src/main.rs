@@ -41,31 +41,18 @@ impl App for MainWindow {
 
         ctx.set_visuals(Visuals::dark());
 
-        CentralPanel::default().show(ctx, |ui| {
-            self.graph(ui);
+        TopBottomPanel::bottom("ButtonPanel").show(ctx, |ui| {
+
+            egui::Grid::new("Control Panel").show(ui, |control_ui| {
+                self.control_panel(control_ui);                
+             
+            });
         });
 
-        TopBottomPanel::bottom("ButtonPanel").show(ctx, |ui| {
-            if ui.add(Button::new("Add Random Point")).clicked() {
-                let pm = Arc::clone(&self.point_manager);
-                pm.lock().unwrap().add_random_point();
-            }
-            if ui.add(Button::new("Remove Last Point")).clicked() {
-                let pm = Arc::clone(&self.point_manager);
-                pm.lock().unwrap().remove_last_point();
-            }
-            if ui.add(Button::new("Start Random Search")).clicked() {
-                let ld = Arc::clone(&self.local_data);
-                ld.lock().unwrap().mode = RunMode::GenerateRandom;
-            }
-            if ui.add(Button::new("Start Random Swap")).clicked() {
-                let ld = Arc::clone(&self.local_data);
-                ld.lock().unwrap().mode = RunMode::RandomSwap;
-            }
-            if ui.add(Button::new("Stop")).clicked() {
-                let ld = Arc::clone(&self.local_data);
-                ld.lock().unwrap().mode = RunMode::None;
-            }
+        CentralPanel::default()
+        .show(ctx, |ui| {
+            self.graph(ui);
+
         });
 
     }
@@ -89,7 +76,6 @@ impl MainWindow{
 
         let mut mw = Self { 
             point_manager: Arc::new(Mutex::new(PointManager::default())),
-            // context: cc.egui_ctx.clone(),
             local_data: Arc::new(Mutex::new(LocalData::new(cc.egui_ctx.clone())))
         };
 
@@ -100,7 +86,6 @@ impl MainWindow{
     fn start_main_loop(&mut self) {
         let pm = Arc::clone(&self.point_manager);
         let ld = Arc::clone(&self.local_data);
-        // let ctx = self.context.clone();
         thread::spawn(move || {
             MainWindow::main_loop(pm, ld);
         });
@@ -126,10 +111,55 @@ impl MainWindow{
                 RunMode::RandomSwap => {
                     point_manager.lock().unwrap().random_swap_step(4);
                 }
-                RunMode::None => {}
+                RunMode::None => {
+                    point_manager.lock().unwrap().current_path = Vec::new();
+                }
             }
         }
 
+    }
+
+    fn control_panel(&mut self, ui: &mut Ui) {
+        if ui.add(Button::new("Add Random Point")).clicked() {
+            let pm = Arc::clone(&self.point_manager);
+            pm.lock().unwrap().add_random_point();
+        }
+
+        if ui.add(Button::new("Start Random Search")).clicked() {
+            let ld = Arc::clone(&self.local_data);
+            ld.lock().unwrap().mode = RunMode::GenerateRandom;
+        }
+
+        ui.end_row();
+
+        if ui.add(Button::new("Remove Last Point")).clicked() {
+            let pm = Arc::clone(&self.point_manager);
+            pm.lock().unwrap().remove_last_point();
+        }
+
+        if ui.add(Button::new("Start Random Swap")).clicked() {
+            let ld = Arc::clone(&self.local_data);
+            ld.lock().unwrap().mode = RunMode::RandomSwap;
+        }
+
+
+        ui.horizontal(|horizontal_ui| {
+            horizontal_ui.add(
+                egui::Slider::new(&mut self.local_data.lock().unwrap().swap_n, 0..=10)
+                .text("Swap n"))
+        });
+        
+        ui.end_row();
+
+        if ui.add(Button::new("Clear Points")).clicked() {
+            let pm = Arc::clone(&self.point_manager);
+            pm.lock().unwrap().clear_points();
+        }
+
+        if ui.add(Button::new("Stop")).clicked() {
+            let ld = Arc::clone(&self.local_data);
+            ld.lock().unwrap().mode = RunMode::None;
+        }
     }
     
     fn graph(&self, ui: &mut Ui) {

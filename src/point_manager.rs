@@ -59,6 +59,11 @@ impl PointManager {
         self.reset_paths();
     }
 
+    pub fn clear_points(&mut self) {
+        self.points = Vec::new();
+        self.reset_paths();
+    }
+
     fn point_exists(&self, p:&Point) -> bool {
         let potential_index = self.points.iter().position(|point| *point == *p );
         match potential_index{
@@ -128,8 +133,9 @@ impl PointManager {
             for _ in 0..n {
                 let i = rng.gen_range(0..size);
                 let j = rng.gen_range(0..size);
-        
-                path.swap(i, j);
+                
+                let el = path.remove(i);
+                path.insert(j, el);
             }
 
         }
