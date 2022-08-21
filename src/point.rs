@@ -10,18 +10,18 @@ pub struct Point {
 
 impl Point {
 
-    pub fn distanceBetween(p1: &Point, p2: &Point) -> f32 {
+    pub fn distance_between(p1: &Point, p2: &Point) -> f32 {
         let delta_x = p1.x - p2.x;
         let delta_y = p1.y - p2.y;
         let ans = (delta_x.powf(2.0) + delta_y.powf(2.0)).sqrt();
         return ans;
     }
 
-    pub fn distanceTo(&self, other_point: &Point) -> f32 {
-        return Point::distanceBetween(&self, other_point);
+    pub fn distance_to(&self, other_point: &Point) -> f32 {
+        return Point::distance_between(&self, other_point);
     }
 
-    pub fn generateRandom(radius:f32) -> Point {
+    pub fn generate_random(radius:f32) -> Point {
         let mut rng = rand::thread_rng();
 
         let x: f32 = rng.gen_range( (-1.0 * radius)..radius);

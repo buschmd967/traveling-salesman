@@ -1,24 +1,19 @@
 mod point_manager;
 mod point;
 
-use rand::Rng;
 use eframe::{App, run_native, egui::{Context, Color32, Ui, Button, plot::{self, MarkerShape}, plot::Plot, CentralPanel, Visuals, TopBottomPanel}};
 use point_manager::{RunMode, PointManager};
-use std::thread;
+use std::{thread, time};
 use std::sync::{Arc, Mutex};
 
 
 struct MainWindow{ 
     point_manager:Arc<Mutex<PointManager>>,
-    context:Arc<Mutex<Context>>
-    // mode:RunMode
+    context:Context
 }
 
 impl App for MainWindow {
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
-        
-        let context = Arc::clone(&self.context); 
-            context.lock().unwrap().clone_from(ctx);
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
 
         ctx.set_visuals(Visuals::dark());
 
@@ -54,7 +49,7 @@ impl Default for MainWindow {
     fn default() -> Self {
         Self {
             point_manager: Arc::new(Mutex::new(PointManager::default())),
-            context: Arc::new(Mutex::new(Context::default()))
+            context: Context::default()
         }
     }
 
@@ -62,26 +57,40 @@ impl Default for MainWindow {
 
 impl MainWindow{
 
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+
+        let mut mw = Self { 
+            point_manager: Arc::new(Mutex::new(PointManager::default())),
+            context: cc.egui_ctx.clone()
+        };
+
+        mw.start_main_loop();
+        return mw;
+    }
+
     fn start_main_loop(&mut self) {
         let pm = Arc::clone(&self.point_manager);
         let ctx = self.context.clone();
         thread::spawn(move || {
-            MainWindow::main_loop(Arc::clone(&pm), ctx);
+            MainWindow::main_loop(pm, ctx);
         });
     }
 
-    fn main_loop(point_manager: Arc<Mutex<PointManager>>, context:Arc<Mutex<Context>>) {
+    fn main_loop(point_manager: Arc<Mutex<PointManager>>, ctx:Context) {
         
-        loop{
-            let context_guard = Arc::clone(&context);
-            let c = context_guard.lock().unwrap();
-            c.request_repaint();
+        let mut last_repaint = time::Instant::now();
+        let update_interval = time::Duration::from_millis(1);
 
-            let pm = Arc::clone(&point_manager);
-            let mode = pm.lock().unwrap().mode.clone();
+        loop{
+            if last_repaint + update_interval <= time::Instant::now() {
+                ctx.request_repaint();
+                last_repaint = time::Instant::now();
+            } 
+
+            let mode = point_manager.lock().unwrap().mode.clone();
             match mode {
                 RunMode::GenerateRandom => {
-                    pm.lock().unwrap().random_path_step();
+                    point_manager.lock().unwrap().random_path_step();
                 },
                 RunMode::None => {}
             }
@@ -134,7 +143,7 @@ impl MainWindow{
     fn generate_path_values(&self, points: &Vec<traveling_salesman::point::Point>) -> plot::Values {
         let mut values_vector = Vec::<plot::Value>::new();
 
-        for (point) in points {
+        for point in points {
             values_vector.push(point.to_value());
         }
 
@@ -152,7 +161,7 @@ impl MainWindow{
         let mut values_vector = Vec::<plot::Value>::new();
         let pm = Arc::clone(&self.point_manager);
 
-        for (point) in &pm.lock().unwrap().points {
+        for point in &pm.lock().unwrap().points {
             values_vector.push(point.to_value());
         }
 
@@ -170,15 +179,15 @@ fn main(){
         ..Default::default()
     };
 
-    let mut main_window = MainWindow::default();
+    // let mut main_window = MainWindow::default();
 
-    main_window.start_main_loop();
+    // main_window.start_main_loop();
 
     // thread::spawn(|| {
         run_native(
             "Traveling Salesman",
             options,
-            Box::new(|_cc| Box::new(main_window))
+            Box::new(|cc| Box::new(MainWindow::new(cc)))
         );
     // });
 

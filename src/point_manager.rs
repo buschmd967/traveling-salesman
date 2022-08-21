@@ -1,6 +1,5 @@
 use rand::seq::SliceRandom;
-use traveling_salesman::point::{self, Point};
-use rand::Rng;
+use traveling_salesman::point::Point;
 
 #[derive(Clone, Copy)]
 pub enum RunMode {
@@ -35,10 +34,10 @@ impl PointManager {
     }
 
     pub fn add_random_point(&mut self) {
-        let mut new_point:Point = Point::generateRandom(self.radius);
+        let mut new_point:Point = Point::generate_random(self.radius);
 
         while self.point_exists(&new_point) {
-            new_point = Point::generateRandom(self.radius);
+            new_point = Point::generate_random(self.radius);
         }
         
         self.points.push(new_point);
@@ -78,10 +77,10 @@ impl PointManager {
         
         for (index, &point) in path.iter().enumerate() {
             if index == path.len() - 1 {
-                score += point.distanceTo(&path[0]);
+                score += point.distance_to(&path[0]);
             } 
             else{
-                score += point.distanceTo(&path[index + 1]);
+                score += point.distance_to(&path[index + 1]);
             }
         }
 
