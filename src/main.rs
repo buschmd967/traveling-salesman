@@ -16,6 +16,7 @@ pub enum RunMode {
 
 struct LocalData{
     swap_n:i32,
+    points_to_add: i32,
     ctx: Context,
     mode: RunMode,
     show_saved_path: bool
@@ -25,6 +26,7 @@ impl LocalData{
     fn new(c: Context) -> Self {
         Self{
             swap_n: 1,
+            points_to_add: 20,
             ctx: c,
             mode: RunMode::None,
             show_saved_path: false
@@ -132,21 +134,24 @@ impl MainWindow{
 
     fn control_panel(&mut self, ui: &mut Ui) {
         // ROW 1
-        if ui.add(Button::new("Add Random Point")).clicked() {
-            let pm = Arc::clone(&self.point_manager);
-            pm.lock().unwrap().add_random_point();
-        }
+
+        ui.horizontal(|horizontal_ui| {
+            horizontal_ui.add(
+                egui::Slider::new(&mut self.local_data.lock().unwrap().points_to_add, 3..=40)
+                .text("Points"));
+        });
 
         if ui.add(Button::new("Start Random Search")).clicked() {
             let ld = Arc::clone(&self.local_data);
             ld.lock().unwrap().mode = RunMode::GenerateRandom;
         }
-        
-        if ui.add(Button::new("Start Random Point Swap")).clicked() {
-            let ld = Arc::clone(&self.local_data);
-            ld.lock().unwrap().mode = RunMode::RandomPointSwap;
-        }
 
+        ui.horizontal(|horizontal_ui| {
+            horizontal_ui.add(
+                egui::Slider::new(&mut self.local_data.lock().unwrap().swap_n, 1..=5)
+                .text("Swap n"));
+        });
+        
         if ui.add(Button::new("Toggle Saved Path")).clicked() {
             let ld = Arc::clone(&self.local_data);
             ld.lock().unwrap().toggle_show_saved_path();
@@ -156,9 +161,10 @@ impl MainWindow{
         ui.end_row();
         // ROW 2
 
-        if ui.add(Button::new("Remove Last Point")).clicked() {
+        if ui.add(Button::new("Add Points")).clicked() {
             let pm = Arc::clone(&self.point_manager);
-            pm.lock().unwrap().remove_last_point();
+            let ld = Arc::clone(&self.local_data);
+            pm.lock().unwrap().add_random_points(ld.lock().unwrap().points_to_add);
         }
 
         if ui.add(Button::new("Reset Paths")).clicked() {
@@ -190,11 +196,10 @@ impl MainWindow{
             ld.lock().unwrap().mode = RunMode::None;
         }
 
-        ui.horizontal(|horizontal_ui| {
-            horizontal_ui.add(
-                egui::Slider::new(&mut self.local_data.lock().unwrap().swap_n, 0..=5)
-                .text("Swap n"));
-        });
+        if ui.add(Button::new("Start Random Point Swap")).clicked() {
+            let ld = Arc::clone(&self.local_data);
+            ld.lock().unwrap().mode = RunMode::RandomPointSwap;
+        }
 
         if ui.add(Button::new("Reset Saved Path")).clicked() {
             let pm = Arc::clone(&self.point_manager);
@@ -258,7 +263,7 @@ impl MainWindow{
                     let saved_score = pm.lock().unwrap().saved_score;
                     let saved_path_text = "Saved Path Score: ".to_owned() + &saved_score.to_string(); 
                     plot_ui.line(plot::Line::new(self.generate_path_values(&saved_path))
-                        .color(Color32::from_rgba_unmultiplied(0, 0, 255, 20))
+                        .color(Color32::from_rgba_unmultiplied(255, 255, 255, 20))
                         .name(saved_path_text)
                         .width(12.0)
                         .highlight(true)
@@ -322,16 +327,10 @@ fn main(){
         ..Default::default()
     };
 
-    // let mut main_window = MainWindow::default();
-
-    // main_window.start_main_loop();
-
-    // thread::spawn(|| {
-        run_native(
-            "Traveling Salesman",
-            options,
-            Box::new(|cc| Box::new(MainWindow::new(cc)))
-        );
-    // });
+    run_native(
+        "Traveling Salesman",
+        options,
+        Box::new(|cc| Box::new(MainWindow::new(cc)))
+    );
 
 }

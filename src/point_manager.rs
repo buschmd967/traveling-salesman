@@ -48,6 +48,12 @@ impl PointManager {
         self.reset_paths();
     }
 
+    pub fn add_random_points(&mut self, n: i32) {
+        for _ in 0..n {
+            self.add_random_point();
+        }
+    }
+
     pub fn add_point(&mut self, p:Point) -> bool {
         if !self.point_exists(&p){
             self.points.push(p);
