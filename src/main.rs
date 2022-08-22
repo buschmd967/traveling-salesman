@@ -17,7 +17,8 @@ pub enum RunMode {
 struct LocalData{
     swap_n:i32,
     ctx: Context,
-    mode: RunMode
+    mode: RunMode,
+    show_saved_path: bool
 }
 
 impl LocalData{
@@ -25,8 +26,13 @@ impl LocalData{
         Self{
             swap_n: 1,
             ctx: c,
-            mode: RunMode::None
+            mode: RunMode::None,
+            show_saved_path: false
         }
+    }
+
+    fn toggle_show_saved_path(&mut self) {
+        self.show_saved_path = !self.show_saved_path;
     }
 }
 
@@ -141,6 +147,12 @@ impl MainWindow{
             ld.lock().unwrap().mode = RunMode::RandomPointSwap;
         }
 
+        if ui.add(Button::new("Toggle Saved Path")).clicked() {
+            let ld = Arc::clone(&self.local_data);
+            ld.lock().unwrap().toggle_show_saved_path();
+            
+        }
+
         ui.end_row();
         // ROW 2
 
@@ -148,11 +160,21 @@ impl MainWindow{
             let pm = Arc::clone(&self.point_manager);
             pm.lock().unwrap().remove_last_point();
         }
-        ui.horizontal(|_|{});
 
+        if ui.add(Button::new("Reset Paths")).clicked() {
+            let pm = Arc::clone(&self.point_manager);
+            pm.lock().unwrap().reset_paths();
+        }
+        
         if ui.add(Button::new("Start Random Path Swap")).clicked() {
             let ld = Arc::clone(&self.local_data);
             ld.lock().unwrap().mode = RunMode::RandomPathSwap;
+        }
+
+        if ui.add(Button::new("Save Current Path")).clicked() {
+            let pm = Arc::clone(&self.point_manager);
+            pm.lock().unwrap().save_current_path();
+            
         }
         
         ui.end_row();
@@ -170,9 +192,15 @@ impl MainWindow{
 
         ui.horizontal(|horizontal_ui| {
             horizontal_ui.add(
-                egui::Slider::new(&mut self.local_data.lock().unwrap().swap_n, 0..=20)
+                egui::Slider::new(&mut self.local_data.lock().unwrap().swap_n, 0..=5)
                 .text("Swap n"));
         });
+
+        if ui.add(Button::new("Reset Saved Path")).clicked() {
+            let pm = Arc::clone(&self.point_manager);
+            pm.lock().unwrap().reset_saved_path();
+            
+        }
 
     }
     
@@ -195,40 +223,61 @@ impl MainWindow{
             .allow_boxed_zoom(false)
             .allow_scroll(false)
             .allow_zoom(false)
+            .legend(plot::Legend::default())
             .show(ui, |plot_ui| {
                 
+
+                
+                //Path stuff
+                let pm = Arc::clone(&self.point_manager);
+                let best_path = pm.lock().unwrap().best_path.clone();
+                let current_path = pm.lock().unwrap().current_path.clone();
+                let saved_path = pm.lock().unwrap().saved_path.clone();
+
+                let show_saved_path = self.local_data.lock().unwrap().show_saved_path.clone();
+                
+                let mut current_best_color = Color32::from_rgb(0, 255, 0);  
+
+                if show_saved_path {
+                    current_best_color = Color32::from_rgba_unmultiplied(0, 255, 0, 255);    
+
+                }
+
+
+                //Current Best
+                let best_score = pm.lock().unwrap().score;
+                let current_best_text = "Best Path Score: ".to_owned() + &best_score.to_string(); 
+                plot_ui.line(plot::Line::new(self.generate_path_values(&best_path))
+                    .highlight(true)
+                    .color(current_best_color)
+                    .name(current_best_text)
+                );
+
+                //Saved Path
+                if show_saved_path {
+                    let saved_score = pm.lock().unwrap().saved_score;
+                    let saved_path_text = "Saved Path Score: ".to_owned() + &saved_score.to_string(); 
+                    plot_ui.line(plot::Line::new(self.generate_path_values(&saved_path))
+                        .color(Color32::from_rgba_unmultiplied(0, 0, 255, 20))
+                        .name(saved_path_text)
+                        .width(12.0)
+                        .highlight(true)
+                    );
+                }
+
+                //Current Try
+                plot_ui.line(
+                    plot::Line::new(self.generate_path_values(&current_path))
+                    .color(Color32::from_rgba_unmultiplied(80, 120, 255, 100))
+                );
+
                 //plot nodes
                 plot_ui.points(
                     self.generate_points()
                     .shape(MarkerShape::Circle)
                     .filled(true)
                     .radius(3.0)
-                );
-                
-                //Path stuff
-                let pm = Arc::clone(&self.point_manager);
-                let best_path = pm.lock().unwrap().best_path.clone();
-                let current_path = pm.lock().unwrap().current_path.clone();
-
-                //Current Best
-                plot_ui.line(plot::Line::new(self.generate_path_values(&best_path))
-                    .color(Color32::from_rgb(0, 255, 0))
-                );
-
-                //Current Try
-                plot_ui.line(
-                    plot::Line::new(self.generate_path_values(&current_path))
-                );
-
-                //Info text
-                //score text
-                let score = pm.lock().unwrap().score;
-                let score_text = "score: ".to_owned() + &score.to_string(); 
-                plot_ui.text(
-                    plot::Text::new(PlotPoint::new(-13.5, 14), score_text)
-                    .name("Text")
-
-                    
+                    .color(Color32::RED)
                 );
 
             });

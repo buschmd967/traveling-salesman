@@ -8,8 +8,9 @@ pub struct PointManager {
     pub points:Vec<Point>,
     pub current_path: Vec<Point>,
     pub best_path: Vec<Point>,
+    pub saved_path: Vec<Point>,
     pub score: f32,
-
+    pub saved_score: f32,
     radius:f32  
 }
 
@@ -19,7 +20,9 @@ impl PointManager {
             points: Vec::new(),
             current_path: Vec::new(),
             best_path: Vec::new(),
+            saved_path: Vec::new(),
             score: f32::INFINITY,
+            saved_score: f32::INFINITY,
             radius: 10.0
         }
     }
@@ -71,6 +74,17 @@ impl PointManager {
             None => return false
         }
     }
+
+    pub fn save_current_path(&mut self) {
+        self.saved_path = self.best_path.clone();
+        self.saved_score = self.score.clone();
+    }
+
+    pub fn reset_saved_path(&mut self) {
+        self.saved_path = Vec::new();
+        self.saved_score = f32::INFINITY;
+    }
+
 
     pub fn reset_paths(&mut self) {
         self.current_path = Vec::new();
