@@ -30,6 +30,10 @@ impl Point {
         return Self{x, y};
     }
 
+    pub fn new(x:f32, y:f32) -> Point {
+        Self {x, y}
+    }
+
     pub fn to_value(&self) -> [f64;2] {
         return [f64::from(self.x), f64::from(self.y)]; 
     }

@@ -186,6 +186,82 @@ impl PointManager {
         return path;
     }
 
+    pub fn set_radial_path(&mut self) {
+        self.best_path = self.generate_radial_path();
+        self.score = PointManager::evaluate_path(&self.best_path);
+    }
+
+    fn generate_radial_path_step(remaining_points: &mut Vec<Point>, path: &mut Vec<Point>, radius: f32){
+        let origin: Point = Point::new(0.0, 0.0);
+
+        for el in remaining_points.clone() {
+            if el.distance_to(&origin) >= radius {
+                //Remove point from remaining points
+                let index = remaining_points.iter().position(|x| *x == el).unwrap();
+                remaining_points.remove(index);
+
+                //Find closest point in path
+                let mut best_index = 0;
+                let mut shortest_distance = f32::INFINITY;
+
+                for (index, p) in path.iter().enumerate() {
+                    let distance = p.distance_to(&el);
+                    if  distance < shortest_distance {
+                        shortest_distance = distance;
+                        best_index = index;
+                    }
+                }
+                
+                //Add el next to closest point in path
+                path.insert(best_index, el);
+                
+            }
+        }
+
+    }
+
+    fn generate_radial_path(&self) -> Vec<Point> {
+        let mut remaining_points: Vec<Point> = self.points.clone();
+        let mut path: Vec<Point> = Vec::new();
+        let origin: Point = Point::new(0.0, 0.0);
+
+        let mut r = self.radius.clone() + 10.0;
+        loop{
+            if r < 0.0 || remaining_points.len() == 0 {
+                break;
+            }
+            
+            for el in remaining_points.clone() {
+                if el.distance_to(&origin) >= r {
+                    //Remove point from remaining points
+                    let index = remaining_points.iter().position(|x| *x == el).unwrap();
+                    remaining_points.remove(index);
+
+                    //Find closest point in path
+                    let mut best_index = 0;
+                    let mut shortest_distance = f32::INFINITY;
+
+                    for (index, p) in path.iter().enumerate() {
+                        let distance = p.distance_to(&el);
+                        if  distance < shortest_distance {
+                            shortest_distance = distance;
+                            best_index = index+1;
+                        }
+                    }
+                    
+                    //Add el next to closest point in path
+                    path.insert(best_index, el);
+                    
+                }
+            }
+
+            r -= 0.01
+        }
+
+
+        return path;
+    }
+
 
 }
 

@@ -42,7 +42,8 @@ impl LocalData{
 struct MainWindow{ 
     point_manager:Arc<Mutex<PointManager>>,
     // context:Context,
-    local_data: Arc<Mutex<LocalData>>
+    local_data: Arc<Mutex<LocalData>>,
+    radius: f32
 }
 
 impl App for MainWindow {
@@ -73,7 +74,8 @@ impl Default for MainWindow {
         Self {
             point_manager: Arc::new(Mutex::new(PointManager::default())),
             // context: Context::default(),
-            local_data: Arc::new(Mutex::new(LocalData::new(Context::default())))
+            local_data: Arc::new(Mutex::new(LocalData::new(Context::default()))),
+            radius: 10.0
         }
     }
 
@@ -85,7 +87,8 @@ impl MainWindow{
 
         let mut mw = Self { 
             point_manager: Arc::new(Mutex::new(PointManager::default())),
-            local_data: Arc::new(Mutex::new(LocalData::new(cc.egui_ctx.clone())))
+            local_data: Arc::new(Mutex::new(LocalData::new(cc.egui_ctx.clone()))),
+            radius: 10.0
         };
 
         mw.start_main_loop();
@@ -156,6 +159,11 @@ impl MainWindow{
             let ld = Arc::clone(&self.local_data);
             ld.lock().unwrap().toggle_show_saved_path();
             
+        }
+
+        if ui.add(Button::new("Set Radial Path")).clicked() {
+            let pm = Arc::clone(&self.point_manager);
+            pm.lock().unwrap().set_radial_path();
         }
 
         ui.end_row();
